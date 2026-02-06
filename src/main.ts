@@ -364,7 +364,7 @@ function insertModeKey(name: string, ch?: string) {
   }
 }
 
-screen.on("keypress", (_ch, key) => {
+screen.on("keypress", (_ch: string, key: { name: string }) => {
   const name = key?.name ?? "";
   const ch = _ch ?? "";
 
