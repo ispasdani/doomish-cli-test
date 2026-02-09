@@ -15,55 +15,165 @@ import {
 } from "./editor/keymap.js";
 import { fuzzyFind } from "./editor/fuzzy.js";
 
+// ---------- THEME ----------
+const THEME = {
+  bg: "black",
+  panel: "black",
+  fg: "white",
+  dim: "gray",
+  neonCyan: "cyan",
+  neonMagenta: "magenta",
+  neonPurple: "magenta",
+  neonGreen: "green",
+  danger: "red",
+  border: "cyan",
+  selectionBg: "magenta",
+};
+
+const ASCII_DOOMISH = [
+  "██████╗  ██████╗  ██████╗ ███╗   ███╗██╗███████╗██╗  ██╗",
+  "██╔══██╗██╔═══██╗██╔═══██╗████╗ ████║██║██╔════╝██║  ██║",
+  "██║  ██║██║   ██║██║   ██║██╔████╔██║██║███████╗███████║",
+  "██║  ██║██║   ██║██║   ██║██║╚██╔╝██║██║╚════██║██╔══██║",
+  "██████╔╝╚██████╔╝╚██████╔╝██║ ╚═╝ ██║██║███████║██║  ██║",
+  "╚═════╝  ╚═════╝  ╚═════╝ ╚═╝     ╚═╝╚═╝╚══════╝╚═╝  ╚═╝",
+  "              cyberpunk modal editor • doom-ish vibes",
+].join("\n");
+
+function modeLabel(mode: Mode) {
+  switch (mode) {
+    case "NORMAL":
+      return "NORMAL";
+    case "INSERT":
+      return "INSERT";
+    case "VISUAL":
+      return "VISUAL";
+    case "COMMAND":
+      return "COMMAND";
+    case "LEADER":
+      return "LEADER";
+  }
+}
+
+function modeColor(mode: Mode) {
+  switch (mode) {
+    case "NORMAL":
+      return THEME.neonCyan;
+    case "INSERT":
+      return THEME.neonGreen;
+    case "VISUAL":
+      return THEME.neonMagenta;
+    case "COMMAND":
+      return THEME.neonPurple;
+    case "LEADER":
+      return THEME.neonMagenta;
+  }
+}
+
+// ---------- SCREEN ----------
 const screen = blessed.screen({
   smartCSR: true,
-  title: "doomish",
+  title: "DOOMISH",
   fullUnicode: true,
+  dockBorders: true,
 });
 
 screen.key(["C-c"], () => process.exit(0));
 
-const root = blessed.box({ top: 0, left: 0, width: "100%", height: "100%" });
-screen.append(root);
-
-// Main editor view
-const gutterWidth = 6;
-const editorBox = blessed.box({
+// Root container
+const root = blessed.box({
   top: 0,
   left: 0,
   width: "100%",
-  height: "100%-1",
-  tags: false,
+  height: "100%",
+  style: { bg: THEME.bg, fg: THEME.fg },
 });
-root.append(editorBox);
+screen.append(root);
 
-const status = blessed.box({
-  bottom: 0,
+// Top bar (cyberpunk HUD)
+const topBar = blessed.box({
+  top: 0,
   left: 0,
   width: "100%",
   height: 1,
+  tags: true,
+  style: { bg: THEME.panel, fg: THEME.fg },
 });
-root.append(status);
+root.append(topBar);
 
-// Leader hints overlay
-const hintsBox = blessed.box({
+// Editor area
+const gutterWidth = 6;
+const editorBox = blessed.box({
   top: 1,
+  left: 0,
+  width: "100%",
+  height: "100%-3",
+  tags: false,
+  style: { bg: THEME.bg, fg: THEME.fg },
+});
+root.append(editorBox);
+
+// Bottom bar
+const bottomBar = blessed.box({
+  bottom: 0,
+  left: 0,
+  width: "100%",
+  height: 2,
+  tags: true,
+  style: { bg: THEME.panel, fg: THEME.fg },
+});
+root.append(bottomBar);
+
+// Leader hints overlay (which-key)
+const hintsBox = blessed.box({
+  top: 2,
   left: 2,
-  width: "50%",
-  height: 10,
+  width: "60%",
+  height: 12,
   border: "line",
+  tags: true,
   hidden: true,
+  style: {
+    bg: THEME.panel,
+    fg: THEME.fg,
+    border: { fg: THEME.border },
+  },
+  label: ` {${THEME.neonMagenta}-fg}DOOMISH{/} {${THEME.dim}-fg}which-key{/} `,
 });
 root.append(hintsBox);
+
+// Splash overlay
+const splash = blessed.box({
+  top: "center",
+  left: "center",
+  width: "90%",
+  height: 9,
+  tags: true,
+  border: "line",
+  hidden: true,
+  style: {
+    bg: THEME.panel,
+    fg: THEME.neonCyan,
+    border: { fg: THEME.neonMagenta },
+  },
+});
+root.append(splash);
 
 // Command palette overlay
 const paletteBox = blessed.box({
   top: "center",
   left: "center",
-  width: "70%",
-  height: "60%",
+  width: "72%",
+  height: "65%",
   border: "line",
   hidden: true,
+  tags: true,
+  style: {
+    bg: THEME.panel,
+    fg: THEME.fg,
+    border: { fg: THEME.neonCyan },
+  },
+  label: ` {${THEME.neonCyan}-fg}palette{/} `,
 });
 const paletteInput = blessed.textbox({
   top: 0,
@@ -71,6 +181,7 @@ const paletteInput = blessed.textbox({
   width: "100%-2",
   height: 1,
   inputOnFocus: true,
+  style: { bg: THEME.bg, fg: THEME.neonCyan },
 });
 const paletteList = blessed.list({
   top: 2,
@@ -79,24 +190,34 @@ const paletteList = blessed.list({
   height: "100%-3",
   keys: true,
   mouse: false,
-  style: { selected: { inverse: true } },
+  style: {
+    bg: THEME.panel,
+    fg: THEME.fg,
+    selected: { bg: THEME.selectionBg, fg: THEME.fg },
+    item: { bg: THEME.panel, fg: THEME.fg },
+  },
 });
 paletteBox.append(paletteInput);
 paletteBox.append(paletteList);
 root.append(paletteBox);
 
+// ---------- DATA ----------
 const buf = new TextBuffer();
 
 const state: EditorState = {
   mode: "NORMAL",
   filePath: null,
   projectRoot: null,
+
   cursor: { row: 0, col: 0 },
   scrollTop: 0,
+
   leader: { active: false, startedAt: 0, seq: [] },
+
   commandLine: "",
   commandPaletteOpen: false,
   paletteQuery: "",
+
   statusMessage: "",
 };
 
@@ -105,11 +226,9 @@ let leaderNode: KeyNode = leaderMap;
 const commands: Record<CommandId, Command> = {
   "file.open": {
     id: "file.open",
-    title: "Find file (open)",
+    title: "Find file (open path)",
     run: () => {
-      // Minimal: ask for a path via palette-like prompt
       openPalette("Open file: ");
-      // When user confirms selection, we’ll treat it as a path (MVP)
     },
   },
   "file.save": {
@@ -117,7 +236,7 @@ const commands: Record<CommandId, Command> = {
     title: "Save file",
     run: () => {
       if (!state.filePath) {
-        state.statusMessage = "No file path. Use SPC f f and type a path.";
+        state.statusMessage = "No file path. Use SPC f f and type one.";
         return;
       }
       buf.saveToFile(state.filePath);
@@ -126,7 +245,7 @@ const commands: Record<CommandId, Command> = {
   },
   "buffer.list": {
     id: "buffer.list",
-    title: "List buffers",
+    title: "List buffers (MVP)",
     run: () => {
       state.statusMessage = "MVP: single buffer only (for now).";
     },
@@ -143,6 +262,7 @@ const commands: Record<CommandId, Command> = {
   },
 };
 
+// ---------- HELPERS ----------
 function clampCursor() {
   const row = Math.max(0, Math.min(state.cursor.row, buf.lineCount() - 1));
   const line = buf.lineAt(row);
@@ -152,69 +272,11 @@ function clampCursor() {
 }
 
 function ensureCursorVisible() {
-  const height = (screen.height as number) - 1;
+  const height = (screen.height as number) - 3; // top bar + bottom 2
   if (state.cursor.row < state.scrollTop) state.scrollTop = state.cursor.row;
   if (state.cursor.row >= state.scrollTop + height)
     state.scrollTop = state.cursor.row - height + 1;
   if (state.scrollTop < 0) state.scrollTop = 0;
-}
-
-function render() {
-  const width = screen.width as number;
-  const height = (screen.height as number) - 1;
-
-  // Render visible lines
-  const out: string[] = [];
-  for (let i = 0; i < height; i++) {
-    const row = state.scrollTop + i;
-    if (row >= buf.lineCount()) {
-      out.push("~");
-      continue;
-    }
-    const line = buf.lineAt(row);
-
-    // Relative numbers (like Doom/Vim)
-    const rel =
-      row === state.cursor.row ? row + 1 : Math.abs(row - state.cursor.row);
-    const gutter = String(rel).padStart(gutterWidth - 1, " ") + " ";
-    const shown =
-      line.length > width - gutterWidth
-        ? line.slice(0, width - gutterWidth - 1)
-        : line;
-    out.push(gutter + shown);
-  }
-  editorBox.setContent(out.join("\n"));
-
-  // Put terminal cursor roughly at the right spot
-  const cursorY = state.cursor.row - state.scrollTop;
-  const cursorX = gutterWidth + state.cursor.col;
-  // blessed cursor positioning uses program cursor, but we can approximate via screen.program
-  try {
-    (screen as any).program.cup(cursorY, Math.max(0, cursorX));
-    (screen as any).program.showCursor();
-  } catch {}
-
-  const mode = state.mode;
-  const file = state.filePath ? path.basename(state.filePath) : "[No File]";
-  const proj = state.projectRoot ? path.basename(state.projectRoot) : "-";
-  const pos = `${state.cursor.row + 1}:${state.cursor.col + 1}`;
-  const dirty = buf.dirty ? "*" : "";
-  const msg = state.statusMessage ? ` — ${state.statusMessage}` : "";
-  status.setContent(` ${mode}  ${file}${dirty}  proj:${proj}  ${pos}${msg}`);
-
-  // Leader hints
-  if (state.mode === "LEADER") {
-    const hints = getHints(leaderNode);
-    const lines = hints.map(
-      (h) => `${h.key}  ${h.kind === "group" ? "▸" : "•"} ${h.title}`,
-    );
-    hintsBox.setContent(lines.join("\n"));
-    hintsBox.show();
-  } else {
-    hintsBox.hide();
-  }
-
-  screen.render();
 }
 
 function setMode(m: Mode) {
@@ -238,12 +300,11 @@ function cancelLeader() {
 }
 
 function handleLeaderKey(k: string) {
-  // Space leader supports sub-space: treat "space" as " "
   const key = k === "space" ? " " : k;
 
   const next = stepLeader(leaderNode, key);
   if (!next) {
-    state.statusMessage = `No binding for: ${["SPC", ...state.leader.seq, key].join(" ")}`;
+    state.statusMessage = `No binding: ${["SPC", ...state.leader.seq, key].join(" ")}`;
     cancelLeader();
     return;
   }
@@ -256,8 +317,7 @@ function handleLeaderKey(k: string) {
     return;
   }
 
-  leaderNode = next; // group
-  // remain in LEADER, showing updated hints
+  leaderNode = next;
 }
 
 function openFile(p: string) {
@@ -290,14 +350,13 @@ function closePalette() {
 }
 
 function refreshPaletteList(query: string) {
-  // For now: fuzzy over commands + (if query looks like a path) allow open
   const cmdItems = Object.values(commands);
   const hits = fuzzyFind(query, cmdItems, (c) => c.title, 30);
   const items = hits.map((h) => h.item.title);
 
-  // show a special "open path" action if user typed something with / or .
-  if (query.trim() && /[./\\]/.test(query.trim())) {
-    items.unshift(`Open file path: ${query.trim()}`);
+  const q = query.trim();
+  if (q && /[./\\]/.test(q)) {
+    items.unshift(`Open file path: ${q}`);
   }
 
   paletteList.setItems(items.length ? items : ["(no results)"]);
@@ -311,11 +370,117 @@ function moveCursor(dr: number, dc: number) {
   ensureCursorVisible();
 }
 
+// ---------- RENDER ----------
+function renderTopBar() {
+  const file = state.filePath ? path.basename(state.filePath) : "untitled";
+  const proj = state.projectRoot ? path.basename(state.projectRoot) : "-";
+  const dirty = buf.dirty ? `{${THEME.neonMagenta}-fg}*{/}` : "";
+  const right = `{${THEME.dim}-fg}proj{/}:${proj}  {${THEME.dim}-fg}file{/}:${file}${dirty}`;
+
+  // left “DOOMISH” logo chunk
+  const left = `{${THEME.neonMagenta}-fg} DOOMISH {/} {${THEME.dim}-fg}:: cyberpunk modal editor{/}`;
+
+  // pad / align
+  const w = screen.width as number;
+  const rawLeft = " DOOMISH :: cyberpunk modal editor";
+  const rawRight = `proj:${proj}  file:${file}${buf.dirty ? "*" : ""}`;
+  const space = Math.max(1, w - rawLeft.length - rawRight.length - 2);
+  topBar.setContent(`${left}${" ".repeat(space)}${right}`);
+}
+
+function renderBottomBar() {
+  const mode = modeLabel(state.mode);
+  const mc = modeColor(state.mode);
+
+  const pos = `${state.cursor.row + 1}:${state.cursor.col + 1}`;
+  const msg = state.statusMessage
+    ? ` {${THEME.dim}-fg}—{/} ${state.statusMessage}`
+    : "";
+
+  const pill = `{black-fg}{${mc}-bg} ${mode} {/}`;
+  const hint = `{${THEME.dim}-fg}  SPC{/} leader  {${THEME.dim}-fg}i{/} insert  {${THEME.dim}-fg}:{/} palette  {${THEME.dim}-fg}Esc{/} back`;
+
+  bottomBar.setContent(
+    `${pill}  {${THEME.dim}-fg}pos{/}:${pos}${msg}\n${hint}`,
+  );
+}
+
+function renderEditor() {
+  const width = screen.width as number;
+  const height = (screen.height as number) - 3;
+
+  const out: string[] = [];
+  for (let i = 0; i < height; i++) {
+    const row = state.scrollTop + i;
+    if (row >= buf.lineCount()) {
+      out.push(`{${THEME.dim}-fg}~{/}`);
+      continue;
+    }
+
+    const line = buf.lineAt(row);
+    const rel =
+      row === state.cursor.row ? row + 1 : Math.abs(row - state.cursor.row);
+
+    const gutterNum = String(rel).padStart(gutterWidth - 1, " ") + " ";
+    const gutter =
+      row === state.cursor.row
+        ? `{${THEME.neonCyan}-fg}${gutterNum}{/}`
+        : `{${THEME.dim}-fg}${gutterNum}{/}`;
+
+    const maxLen = Math.max(0, width - gutterWidth - 1);
+    const shown = line.length > maxLen ? line.slice(0, maxLen) : line;
+
+    out.push(gutter + shown);
+  }
+
+  editorBox.setContent(out.join("\n"));
+
+  // Terminal cursor
+  const cursorY = state.cursor.row - state.scrollTop + 1; // +1 top bar
+  const cursorX = gutterWidth + state.cursor.col;
+  try {
+    (screen as any).program.cup(cursorY, Math.max(0, cursorX));
+    (screen as any).program.showCursor();
+  } catch {}
+}
+
+function renderLeaderHints() {
+  if (state.mode !== "LEADER") {
+    hintsBox.hide();
+    return;
+  }
+
+  const hints = getHints(leaderNode);
+  const seq = ["SPC", ...state.leader.seq].join(" ");
+  const header = `{${THEME.neonMagenta}-fg}${seq}{/}  {${THEME.dim}-fg}(press Esc to cancel){/}`;
+
+  const lines = hints.map((h) => {
+    const k = `{${THEME.neonCyan}-fg}${h.key.padEnd(3)}{/}`;
+    const marker =
+      h.kind === "group"
+        ? `{${THEME.neonMagenta}-fg}▸{/}`
+        : `{${THEME.neonGreen}-fg}•{/}`;
+    return `${k} ${marker} ${h.title}`;
+  });
+
+  hintsBox.setContent([header, "", ...lines].join("\n"));
+  hintsBox.show();
+}
+
+function render() {
+  renderTopBar();
+  renderEditor();
+  renderLeaderHints();
+  renderBottomBar();
+  screen.render();
+}
+
+// ---------- INPUT ----------
 function normalModeKey(name: string, ch?: string) {
   if (name === "space") return startLeader();
   if (name === "i") return setMode("INSERT");
   if (name === "v") return setMode("VISUAL");
-  if (name === ":") return openPalette(""); // treat as command palette MVP
+  if (name === ":") return openPalette("");
 
   if (name === "h") return moveCursor(0, -1);
   if (name === "l") return moveCursor(0, +1);
@@ -356,7 +521,6 @@ function insertModeKey(name: string, ch?: string) {
     return;
   }
 
-  // printable char
   if (ch && ch.length === 1) {
     buf.insertChar(state.cursor.row, state.cursor.col, ch);
     state.cursor.col += 1;
@@ -368,19 +532,19 @@ screen.on("keypress", (_ch: string, key: { name: string }) => {
   const name = key?.name ?? "";
   const ch = _ch ?? "";
 
-  // Palette handling
+  // Palette mode
   if (state.commandPaletteOpen) {
     if (name === "escape") {
       closePalette();
-      return render();
+      render();
+      return;
     }
 
-    // Update list as user types: blessed textbox emits keypress too
     if (name.length === 1 || name === "backspace" || name === "delete") {
-      // Let textbox update value, then read it next tick
       setTimeout(() => {
-        const q = paletteInput.getValue();
-        refreshPaletteList(q.replace(/^Open file:\s*/, ""));
+        const v = paletteInput.getValue();
+        const q = v.replace(/^Open file:\s*/, "");
+        refreshPaletteList(q);
         screen.render();
       }, 0);
       return;
@@ -389,47 +553,49 @@ screen.on("keypress", (_ch: string, key: { name: string }) => {
     if (name === "enter") {
       const selected =
         paletteList.getItem(paletteList.selected)?.getText() ?? "";
-      const q = paletteInput.getValue().trim();
+      const v = paletteInput.getValue().trim();
 
       if (selected.startsWith("Open file path:")) {
         const p = selected.replace(/^Open file path:\s*/, "").trim();
         closePalette();
         openFile(path.resolve(p));
-        return render();
+        render();
+        return;
       }
 
-      // If user typed a path into "Open file:" flow, treat it as a path:
-      if (q.startsWith("Open file:")) {
-        const p = q.replace(/^Open file:\s*/, "").trim();
+      if (v.startsWith("Open file:")) {
+        const p = v.replace(/^Open file:\s*/, "").trim();
         closePalette();
         openFile(path.resolve(p));
-        return render();
+        render();
+        return;
       }
 
-      // Otherwise run matching command by exact title:
       const cmd = Object.values(commands).find((c) => c.title === selected);
       closePalette();
       cmd?.run();
-      return render();
+      render();
+      return;
     }
 
-    return; // while palette open, don’t fall through
+    return;
   }
 
-  // Leader mode
+  // Leader
   if (state.mode === "LEADER") {
     if (name === "escape") {
       cancelLeader();
-      return render();
+      render();
+      return;
     }
     handleLeaderKey(name);
-    return render();
+    render();
+    return;
   }
 
   if (state.mode === "NORMAL") normalModeKey(name, ch);
   else if (state.mode === "INSERT") insertModeKey(name, ch);
   else if (state.mode === "VISUAL") {
-    // MVP: treat visual as normal for now (we’ll add selection next)
     if (name === "escape") setMode("NORMAL");
     else normalModeKey(name, ch);
   }
@@ -437,13 +603,26 @@ screen.on("keypress", (_ch: string, key: { name: string }) => {
   render();
 });
 
-// Boot: open file from CLI arg if provided
+// ---------- BOOT ----------
+function showSplash() {
+  splash.setContent(`{${THEME.neonCyan}-fg}${ASCII_DOOMISH}{/}`);
+  splash.show();
+  screen.render();
+  setTimeout(() => {
+    splash.hide();
+    render();
+  }, 700);
+}
+
 const maybePath = process.argv[2];
 if (maybePath) {
   const p = path.resolve(maybePath);
   if (fs.existsSync(p)) openFile(p);
   else state.statusMessage = "File not found: " + p;
+} else {
+  state.statusMessage = "SPC f f to open a file";
 }
 
 editorBox.focus();
+showSplash();
 render();
