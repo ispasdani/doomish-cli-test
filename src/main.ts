@@ -263,6 +263,22 @@ const commands: Record<CommandId, Command> = {
 };
 
 // ---------- HELPERS ----------
+function paletteMove(delta: number) {
+  const count = paletteList.items?.length ?? 0;
+  if (count <= 0) return;
+  const next = Math.max(
+    0,
+    Math.min((paletteList.selected ?? 0) + delta, count - 1),
+  );
+  paletteList.select(next);
+  screen.render();
+}
+
+function palettePage(deltaPages: number) {
+  const h = (paletteList.height as number) || 10;
+  paletteMove(deltaPages * Math.max(1, h - 2));
+}
+
 function clampCursor() {
   const row = Math.max(0, Math.min(state.cursor.row, buf.lineCount() - 1));
   const line = buf.lineAt(row);
@@ -482,6 +498,13 @@ function normalModeKey(name: string, ch?: string) {
   if (name === "v") return setMode("VISUAL");
   if (name === ":") return openPalette("");
 
+  // arrows
+  if (name === "left") return moveCursor(0, -1);
+  if (name === "right") return moveCursor(0, +1);
+  if (name === "down") return moveCursor(+1, 0);
+  if (name === "up") return moveCursor(-1, 0);
+
+  // vim
   if (name === "h") return moveCursor(0, -1);
   if (name === "l") return moveCursor(0, +1);
   if (name === "j") return moveCursor(+1, 0);
@@ -501,6 +524,11 @@ function normalModeKey(name: string, ch?: string) {
 
 function insertModeKey(name: string, ch?: string) {
   if (name === "escape") return setMode("NORMAL");
+
+  if (name === "left") return moveCursor(0, -1);
+  if (name === "right") return moveCursor(0, +1);
+  if (name === "down") return moveCursor(+1, 0);
+  if (name === "up") return moveCursor(-1, 0);
 
   if (name === "backspace") {
     const { row, col } = buf.deleteCharBackward(
@@ -537,6 +565,32 @@ screen.on("keypress", (_ch: string, key: { name: string }) => {
     if (name === "escape") {
       closePalette();
       render();
+      return;
+    }
+
+    if (name === "down") {
+      paletteMove(+1);
+      return;
+    }
+    if (name === "up") {
+      paletteMove(-1);
+      return;
+    }
+    if (name === "pagedown") {
+      palettePage(+1);
+      return;
+    }
+    if (name === "pageup") {
+      palettePage(-1);
+      return;
+    }
+
+    if (name === "tab") {
+      paletteMove(+1);
+      return;
+    }
+    if (name === "S-tab") {
+      paletteMove(-1);
       return;
     }
 
